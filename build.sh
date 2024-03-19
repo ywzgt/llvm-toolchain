@@ -5,7 +5,7 @@ source envars.sh
 
 ELIBC=gnu
 STDLIB=libcxx
-VERSION=17.0.6
+VERSION=18.1.1
 PKG="$PWD/DEST"
 URL="https://github.com/llvm/llvm-project"
 
@@ -152,6 +152,7 @@ src_config() {
 	else
 		CC=gcc CXX=g++ "$@" \
 		-DLLVM_USE_LINKER=gold
+		sed -i '/C_SHARED_LIBRARY_LINKER__unwind/{n;{n;/LINK_FLAGS/s/\s\+-nostdlib++//}}' build.ninja
 	fi
 }
 

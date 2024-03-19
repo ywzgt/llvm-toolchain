@@ -3,7 +3,7 @@
 set -e
 source envars.sh
 
-VERSION=17.0.6
+VERSION=18.1.1
 PKG="$PWD/DEST"
 SRC=(
 	cmake
@@ -55,6 +55,7 @@ stage1() {
 	-DCMAKE_INSTALL_PREFIX=/usr \
 	-DCMAKE_BUILD_TYPE=Release -GNinja \
 	-DLLVM_ENABLE_RUNTIMES="libunwind;libcxx;libcxxabi"
+	sed -i '/C_SHARED_LIBRARY_LINKER__unwind/{n;{n;/LINK_FLAGS/s/\s\+-nostdlib++//}}' build/build.ninja
 	DESTDIR=$PWD/pkg ninja install -C build; cp -a pkg/usr/lib/* /usr/lib32/
 
 	rm -rf build pkg
