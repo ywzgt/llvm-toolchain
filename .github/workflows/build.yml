@@ -1,0 +1,179 @@
+name: llvm x64
+on:
+  workflow_dispatch:
+
+jobs:
+  build-gnu:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    - name: Preparing LFS rootfs and Setting Up the Environment
+      run: |
+        wget -nv -c https://github.com/ywzgt/alfs-sysroot/releases/latest/download/rootfs.tar.xz{,.sha256}
+        sha256sum -c rootfs.tar.xz.sha256
+        sudo mkdir -v rootfs
+        echo " -> Extracting the 'rootfs.tar.xz'..."
+        sudo tar xpf rootfs.tar.xz -C rootfs
+        echo " -> Preparing Virtual Kernel File Systems..."
+        sudo mkdir -pv rootfs/{dev,proc,sys,run,tmp}
+        sudo mount -v --bind /dev rootfs/dev
+        sudo mount -v --bind /dev/pts rootfs/dev/pts
+        sudo mount -vt proc proc rootfs/proc
+        sudo mount -vt sysfs sysfs rootfs/sys
+        sudo mount -vt tmpfs tmpfs rootfs/run
+        sudo mount -vt tmpfs tmpfs rootfs/tmp
+        if [ -h rootfs/dev/shm ]; then sudo mkdir -pv rootfs/$(readlink rootfs/dev/shm); else sudo mount -vt tmpfs -o nosuid,nodev devshm rootfs/dev/shm; fi
+        echo ''
+        sudo bash -c "echo -e 'nameserver 1.1.1.1\nnameserver 8.8.8.8' >rootfs/etc/resolv.conf"
+        sudo install -do $(id -u) -g $(id -g) rootfs/build
+        cp *.sh rootfs/build
+
+    - name: CMAKE
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash cmake.sh"
+    - name: Run script to build llvm
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash build.sh"
+    - name: Run script to build multilib
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash multilib.sh pre"
+    - name: Run script to build llvm pass2
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash build.sh"
+    - name: Run script to build multilib pass2
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash multilib.sh"
+
+    - name: Run script to strip
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash -e strip.sh DEST"
+    - name: Package
+      run: V=$(<rootfs/build/VERSION); (cd rootfs/build/DEST; sudo tar cf - .|xz -T0) > llvm-$V.tar.xz; echo "TAG_VERSION=$V-$(date +%Y%m%d)" >> $GITHUB_ENV
+
+    - name: Upload to Releases
+      if: ${{ env.TAG_VERSION != '' }}
+      uses: softprops/action-gh-release@master
+      with:
+        tag_name: ${{ env.TAG_VERSION }}
+        files: llvm-*.tar.xz
+        fail_on_unmatched_files: true
+
+    - name: Gh login
+      if: ${{ failure() }}
+      run: echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token; gh auth setup-git; gh auth status
+    - name: Setup tmate ssh session
+      if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true
+
+
+
+  build-musl:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    - name: Preparing LFS rootfs and Setting Up the Environment
+      run: |
+        wget -nv -c https://github.com/ywzgt/alfs-musl/releases/latest/download/rootfs.tar.xz{,.sha256}
+        sha256sum -c rootfs.tar.xz.sha256
+        sudo mkdir -v rootfs
+        echo " -> Extracting the 'rootfs.tar.xz'..."
+        sudo tar xpf rootfs.tar.xz -C rootfs
+        echo " -> Preparing Virtual Kernel File Systems..."
+        sudo mkdir -pv rootfs/{dev,proc,sys,run,tmp}
+        sudo mount -v --bind /dev rootfs/dev
+        sudo mount -v --bind /dev/pts rootfs/dev/pts
+        sudo mount -vt proc proc rootfs/proc
+        sudo mount -vt sysfs sysfs rootfs/sys
+        sudo mount -vt tmpfs tmpfs rootfs/run
+        sudo mount -vt tmpfs tmpfs rootfs/tmp
+        if [ -h rootfs/dev/shm ]; then sudo mkdir -pv rootfs/$(readlink rootfs/dev/shm); else sudo mount -vt tmpfs -o nosuid,nodev devshm rootfs/dev/shm; fi
+        echo ''
+        sudo bash -c "echo -e 'nameserver 1.1.1.1\nnameserver 8.8.8.8' >rootfs/etc/resolv.conf"
+        sudo install -do $(id -u) -g $(id -g) rootfs/build
+        cp *.sh rootfs/build
+
+    - name: CMAKE
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash cmake.sh"
+    - name: Run script to build llvm
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash build.sh musl"
+    - name: Run script to build llvm pass2
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash build.sh musl"
+    - name: Run script to strip
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash -e strip.sh DEST"
+    - name: Package
+      run: V=$(<rootfs/build/VERSION); (cd rootfs/build/DEST; sudo tar cf - .|xz -T0) > llvm-musl-$V.tar.xz; echo "TAG_VERSION=$V-$(date +%Y%m%d)" >> $GITHUB_ENV
+
+    - name: Upload to Releases
+      if: ${{ env.TAG_VERSION != '' }}
+      uses: softprops/action-gh-release@master
+      with:
+        tag_name: ${{ env.TAG_VERSION }}
+        files: llvm-*.tar.xz
+        fail_on_unmatched_files: true
+
+    - name: Gh login
+      if: ${{ failure() }}
+      run: echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token; gh auth setup-git; gh auth status
+    - name: Setup tmate ssh session
+      if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true
+
+
+
+  build-uclibc:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    - name: Preparing LFS rootfs and Setting Up the Environment
+      run: |
+        wget -q https://api.github.com/repos/ywzgt/alfs-uclibc/releases
+        URL="$(grep -o 'https://.*.r/rootfs.tar.xz' releases | sort -uV | tail -1)"
+        wget -nv -c $URL{,.sha256}; rm releases
+        sha256sum -c rootfs.tar.xz.sha256
+        sudo mkdir -v rootfs
+        echo " -> Extracting the 'rootfs.tar.xz'..."
+        sudo tar xpf rootfs.tar.xz -C rootfs
+        echo " -> Preparing Virtual Kernel File Systems..."
+        sudo mkdir -pv rootfs/{dev,proc,sys,run,tmp}
+        sudo mount -v --bind /dev rootfs/dev
+        sudo mount -v --bind /dev/pts rootfs/dev/pts
+        sudo mount -vt proc proc rootfs/proc
+        sudo mount -vt sysfs sysfs rootfs/sys
+        sudo mount -vt tmpfs tmpfs rootfs/run
+        sudo mount -vt tmpfs tmpfs rootfs/tmp
+        if [ -h rootfs/dev/shm ]; then sudo mkdir -pv rootfs/$(readlink rootfs/dev/shm); else sudo mount -vt tmpfs -o nosuid,nodev devshm rootfs/dev/shm; fi
+        echo ''; sudo bash -c "echo 'nameserver 1.1.1.1' >rootfs/etc/resolv.conf"
+        sudo install -do $(id -u) -g $(id -g) rootfs/build
+        cp *.sh patch/*.patch rootfs/build
+
+    - name: CMAKE
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash cmake.sh"
+    - name: Run script to build llvm
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash build.sh uclibc"
+    - name: Run script to build llvm pass2
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash build.sh uclibc"
+    - name: Run script to strip
+      run: sudo chroot rootfs /usr/bin/env -i HOME=/root TERM=$TERM PATH=/usr/bin:/usr/sbin /bin/bash --login -c "cd /build; bash -e strip.sh DEST"
+    - name: Package
+      run: V=$(<rootfs/build/VERSION); (cd rootfs/build/DEST; sudo tar cf - .|xz -T0) > llvm-uclibc-$V.tar.xz; echo "TAG_VERSION=$V-$(date +%Y%m%d)" >> $GITHUB_ENV
+
+    - name: Upload to Releases
+      if: ${{ env.TAG_VERSION != '' }}
+      uses: softprops/action-gh-release@master
+      with:
+        tag_name: ${{ env.TAG_VERSION }}
+        files: llvm-*.tar.xz
+        fail_on_unmatched_files: true
+
+    - name: Gh login
+      if: ${{ failure() }}
+      run: echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token; gh auth setup-git; gh auth status
+    - name: Setup tmate ssh session
+      if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true
