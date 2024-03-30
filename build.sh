@@ -5,7 +5,7 @@ source envars.sh
 
 ELIBC=gnu
 STDLIB=libcxx
-VERSION=17.0.6
+VERSION=18.1.2
 PKG="$PWD/DEST"
 TRIPLE="$(gcc -dumpmachine)"
 URL="https://github.com/llvm/llvm-project"
@@ -90,6 +90,7 @@ if [[ $STDLIB = libcxx ]]; then
 	sed 's@../runtimes@LLVM-runtimes.src@' -i \
 		projects/compiler-rt/cmake/Modules/AddCompilerRT.cmake \
 		projects/compiler-rt/lib/sanitizer_common/symbolizer/scripts/build_symbolizer.sh
+	sed -i '/LIBCXXABI_USE_LLVM_UNWINDER AND/s/ NOT//' projects/libcxxabi/CMakeLists.txt
 	_args=(-DLIBCXX{,ABI}_INSTALL_LIBRARY_DIR=lib)
 else
 	for M in {HandleFlags,WarningFlags}.cmake; do
@@ -112,10 +113,6 @@ NOSANITIZERS_ARGS=(
 )
 
 src_config() {
-	if [[ $CROSS_X86 ]]; then
-		$@; return $?
-	fi
-
 	local _flags=(
 	   -DCLANG_DEFAULT_RTLIB=compiler-rt
 	   -DCLANG_DEFAULT_UNWINDLIB=libunwind
@@ -128,7 +125,7 @@ src_config() {
 		_flags+=(
 		  -DLIBCXX{,ABI}_USE_COMPILER_RT=ON
 		  -DLIBCXX_HAS_ATOMIC_LIB=OFF
-		  -DLIBCXX_ENABLE_ASSERTIONS=ON  # TODO(LLVM 19): Produce a deprecation warning.
+		  -DLIBCXX_HARDENING_MODE=extensive  # https://libcxx.llvm.org/Hardening.html
 		  -DSANITIZER_CXX_ABI=libcxxabi
 		  -DCLANG_DEFAULT_CXX_STDLIB=libc++
 		)
@@ -146,7 +143,8 @@ src_config() {
 		"${_flags[@]}"
 	else
 		CC=gcc CXX=g++ "$@" \
-		-DLLVM_USE_LINKER=gold
+		$([[ $CROSS_X86 ]] || echo -DLLVM_USE_LINKER=gold)
+		sed -i '/C_SHARED_LIBRARY_LINKER__unwind/{n;{n;/LINK_FLAGS/s/\s\+-nostdlib++//}}' build.ninja
 	fi
 }
 

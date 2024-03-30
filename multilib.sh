@@ -3,7 +3,7 @@
 set -e
 source envars.sh
 
-VERSION=17.0.6
+VERSION=18.1.2
 PKG="$PWD/DEST"
 TRIPLE="$(gcc -dumpmachine)"
 TRIPLE="${TRIPLE/x86_64/i386}"
@@ -35,7 +35,7 @@ pre_src() {
 	done
 
 	if [[ $LCXX != n ]]; then
-		LCXX_ARGS="-DLIBCXX_ENABLE_ASSERTIONS=ON"
+		LCXX_ARGS="-DLIBCXX_HARDENING_MODE=extensive"
 	fi
 
 	cd bld_multi
@@ -70,6 +70,7 @@ stage1() {
 	-DCMAKE_INSTALL_PREFIX=/usr \
 	-DCMAKE_BUILD_TYPE=Release -GNinja \
 	-DLLVM_ENABLE_RUNTIMES="${RUNTIMES}" $LCXX_ARGS
+	sed -i '/C_SHARED_LIBRARY_LINKER__unwind/{n;{n;/LINK_FLAGS/s/\s\+-nostdlib++//}}' build/build.ninja
 	DESTDIR=$PWD/pkg ninja install -C build; cp -a pkg/usr/lib/* /usr/lib32/
 
 	rm -rf build pkg
