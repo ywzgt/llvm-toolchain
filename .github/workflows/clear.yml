@@ -1,0 +1,18 @@
+name: clear releases
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 10 10 */60 * *
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+    - name: Remove old Releases
+      uses: dev-drprasad/delete-older-releases@v0.3.3
+      with:
+        keep_latest: 10
+        delete_tags: true
+        delete_tag_pattern: '-'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

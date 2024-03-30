@@ -1,0 +1,30 @@
+--- clang-18.1.2.src/lib/Driver/ToolChains/Linux.cpp
++++ clang-18.1.2.src/lib/Driver/ToolChains/Linux.cpp
+@@ -475,6 +475,27 @@ std::string Linux::getDynamicLinker(const ArgList &Args) const {
+
+     return "/lib/ld-musl-" + ArchName + ".so.1";
+   }
++  if (Triple.isUClibc()) {
++    std::string LoaderSuffix;
++    switch (Arch) {
++
++    case llvm::Triple::mips64:
++    case llvm::Triple::ppc64:
++    case llvm::Triple::ppc64le:
++    case llvm::Triple::sparcv9:
++      LoaderSuffix = "64";
++      break;
++    case llvm::Triple::x86_64: {
++      bool X32 = Triple.isX32();
++
++      LoaderSuffix = X32 ? "x32" : "64";
++      break;
++    }
++    default: break;
++    }
++
++    return "/lib/ld" + LoaderSuffix + "-uClibc.so.1";
++  }
+
+   std::string LibDir;
+   std::string Loader;

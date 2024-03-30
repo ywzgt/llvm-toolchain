@@ -1,0 +1,30 @@
+#!/bin/bash
+
+PKG="binutils"
+TRIPLE="$(gcc -dumpmachine)"
+TARGET="${TRIPLE/x86_64/i686}"
+PV="$(ld.bfd -v | sed 's/[a-zA-Z]\|(\|)\|\s//g')"
+SRC="$PKG-$PV.tar.xz"
+
+source ../envars.sh
+
+wget -nv "https://ftp.gnu.org/gnu/$PKG/$SRC"
+tar xf $SRC; cd ${SRC%.tar*}
+mkdir -v build; cd build
+
+../configure --prefix=/usr \
+	--sysconfdir=/etc \
+	--enable-plugins \
+	--disable-werror \
+	--disable-gprofng \
+	--disable-multilib \
+	--disable-nls \
+	--enable-64-bit-bfd \
+	--enable-colored-disassembly \
+	--enable-default-hash-style=gnu \
+	--with-system-zlib --target=${TARGET}
+
+make
+make DESTDIR=$PWD/pkg install
+cp -av pkg/usr/bin/* /usr/bin
+rm -rf ../../$PKG-$PV

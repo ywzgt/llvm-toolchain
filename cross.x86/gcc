@@ -1,0 +1,49 @@
+#!/bin/bash
+
+PKG="gcc"
+TRIPLE="$(gcc -dumpmachine)"
+TARGET="${TRIPLE/x86_64/i686}"
+PV="$(gcc -dumpversion)"
+SRC="$PKG-$PV"
+SRC_FILE="$SRC.tar.xz"
+
+source ../envars.sh
+
+wget -nv "https://ftp.gnu.org/gnu/gcc/$SRC/$SRC_FILE"
+tar xf $SRC_FILE
+cd $SRC
+
+sed '/ld.*-uClibc.so.0/s/0/1/' -i.ori gcc/config/linux.h
+
+mkdir -v build
+cd build
+
+../configure --prefix=/usr \
+	--enable-default-pie \
+	--enable-default-ssp \
+	--enable-languages=c,c++ \
+	--disable-bootstrap \
+	--disable-fixincludes \
+	--disable-multilib \
+	--disable-nls \
+	--disable-lib{sanitizer,ssp} \
+	--with-system-zlib \
+	--target=${TARGET} \
+	--{host,build}=${TRIPLE} \
+	--with-sysroot=/${TARGET} \
+	--program-prefix=${TARGET}-
+
+make
+make DESTDIR=$PWD/pkg install
+rm -f pkg/usr/lib/libcc1.{la,so*}
+rm -f pkg/usr/${TARGET}/lib/*.{la,py}
+rm -rf pkg/usr/share
+rm -rfv pkg/usr/include
+cp -a pkg/usr/* /usr
+
+echo 'int main(){}' > dummy.c
+${TARGET}-gcc dummy.c -v -Wl,--verbose &> dummy.log
+readelf -l a.out | grep ': /lib'
+grep "/lib.*/libc.so" dummy.log
+rm dummy.c a.out dummy.log
+rm -rf ../../$SRC
