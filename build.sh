@@ -119,7 +119,9 @@ src_config() {
 	   -DCLANG_DEFAULT_OBJCOPY=llvm-objcopy
 	)
 
-	[[ $ELIBC = uclibc ]] || _flags+=(-DLLVM_ENABLE_LLD=ON -DCLANG_DEFAULT_LINKER=lld)
+	if [[ $ELIBC != uclibc && $TRIPLE != i?86-* ]]; then
+		_flags+=(-DLLVM_ENABLE_LLD=ON -DCLANG_DEFAULT_LINKER=lld)
+	fi
 
 	if [[ $STDLIB = libcxx ]]; then
 		_flags+=(
@@ -260,6 +262,8 @@ fi
 
 if [[ $ELIBC = uclibc ]]; then
 	sed -i '/-fuse-ld=lld/d' $PKG/usr/lib/clang/clang.cfg
+elif [[ $TRIPLE = i?86-* ]]; then
+	sed -i '/-fuse-ld=lld/s/lld/bfd/' $PKG/usr/lib/clang/clang.cfg
 fi
 
 echo "@clang.cfg" >> "$PKG/usr/lib/clang/clang++.cfg"

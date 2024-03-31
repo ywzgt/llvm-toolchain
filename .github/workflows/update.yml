@@ -32,13 +32,14 @@ jobs:
         sudo bash -c "echo -e 'nameserver 1.1.1.1\nnameserver 8.8.8.8' >rootfs/etc/resolv.conf"
         sudo install -do $(id -u) -g $(id -g) rootfs/build
         echo " -> Extracting the '$SRC'..."
-        sudo tar xf $SRC -C rootfs
+        sudo tar xf $SRC -C rootfs; rm $SRC
         sudo ln -sf clang rootfs/usr/bin/cc
         sudo ln -sf clang++ rootfs/usr/bin/c++
         sudo ln -sf clang-cpp rootfs/usr/bin/cpp
         sudo ln -sf llvm-strip rootfs/usr/bin/strip
         sudo rm -rf rootfs/usr/lib{,exec}/gcc
         sed -i '/^if ! gcc -m32/s/gcc/clang/' multilib.sh
+        sed -i '/^if gcc -m32/s/gcc/clang/' build.sh
         cp *.sh patch/*.patch rootfs/build
 
     - name: CMAKE
@@ -104,13 +105,14 @@ jobs:
         sudo bash -c "echo -e 'nameserver 1.1.1.1\nnameserver 8.8.8.8' >rootfs/etc/resolv.conf"
         sudo install -do $(id -u) -g $(id -g) rootfs/build
         echo " -> Extracting the '$SRC'..."
-        sudo tar xf $SRC -C rootfs
+        sudo tar xf $SRC -C rootfs; rm $SRC
         sudo ln -sf clang rootfs/usr/bin/cc
         sudo ln -sf clang++ rootfs/usr/bin/c++
         sudo ln -sf clang-cpp rootfs/usr/bin/cpp
         sudo ln -sf llvm-strip rootfs/usr/bin/strip
         sudo rm -rf rootfs/usr/lib{,exec}/gcc
         sed -i '/^if ! gcc -m32/s/gcc/clang/' multilib.sh
+        sed -i '/^if gcc -m32/s/gcc/clang/' build.sh
         cp *.sh patch/*.patch rootfs/build
 
     - name: CMAKE
@@ -171,13 +173,14 @@ jobs:
         echo ''; sudo bash -c "echo 'nameserver 1.1.1.1' >rootfs/etc/resolv.conf"
         sudo install -do $(id -u) -g $(id -g) rootfs/build
         echo " -> Extracting the '$SRC'..."
-        sudo tar xf $SRC -C rootfs
+        sudo tar xf $SRC -C rootfs; rm $SRC
         sudo ln -sf clang rootfs/usr/bin/cc
         sudo ln -sf clang++ rootfs/usr/bin/c++
         sudo ln -sf clang-cpp rootfs/usr/bin/cpp
         sudo ln -sf llvm-strip rootfs/usr/bin/strip
         sudo rm -rf rootfs/usr/lib{,exec}/gcc
         sed -i '/^if ! gcc -m32/s/gcc/clang/' multilib.sh
+        sed -i '/^if gcc -m32/s/gcc/clang/' build.sh
         cp *.sh patch/*.patch rootfs/build
 
     - name: CMAKE
