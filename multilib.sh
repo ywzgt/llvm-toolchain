@@ -3,7 +3,7 @@
 set -e
 source envars.sh
 
-VERSION=18.1.2
+VERSION=18.1.3
 PKG="$PWD/DEST"
 TRIPLE="$(gcc -dumpmachine)"
 TRIPLE="${TRIPLE/x86_64/i386}"

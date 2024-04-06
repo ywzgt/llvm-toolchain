@@ -5,7 +5,7 @@ source envars.sh
 
 ELIBC=gnu
 STDLIB=libcxx
-VERSION=18.1.2
+VERSION=18.1.3
 PKG="$PWD/DEST"
 TRIPLE="$(gcc -dumpmachine)"
 URL="https://github.com/llvm/llvm-project"
@@ -190,6 +190,9 @@ fi
 if [[ $TRIPLE = i?86-* ]]; then
 	CFLAGS="${CFLAGS/x86-64-v?/i686}"
 	CXXFLAGS="${CXXFLAGS/x86-64-v?/i686}"
+	BLD_TARGET="host;AMDGPU"
+else
+	BLD_TARGET="host;AMDGPU;ARM"
 fi
 
 mkdir -v build
@@ -202,7 +205,7 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr           \
       -DLLVM_BUILD_LLVM_DYLIB=ON            \
       -DLLVM_LINK_LLVM_DYLIB=ON             \
       -DLLVM_ENABLE_RTTI=ON                 \
-      -DLLVM_TARGETS_TO_BUILD="host;AMDGPU" \
+      -DLLVM_TARGETS_TO_BUILD="$BLD_TARGET" \
       -DLLVM_BINUTILS_INCDIR=/usr/include   \
       -DLLVM_INCLUDE_BENCHMARKS=OFF         \
       -DCLANG_DEFAULT_PIE_ON_LINUX=ON       \
