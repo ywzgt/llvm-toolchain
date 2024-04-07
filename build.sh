@@ -192,7 +192,7 @@ if [[ $TRIPLE = i?86-* ]]; then
 	CXXFLAGS="${CXXFLAGS/x86-64-v?/i686}"
 	BLD_TARGET="host;AMDGPU"
 else
-	BLD_TARGET="host;AMDGPU;ARM"
+	BLD_TARGET="host;AMDGPU;ARM;AArch64"  # llvm/lib/Target/?
 fi
 
 mkdir -v build
