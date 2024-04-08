@@ -136,8 +136,30 @@ stage2() {
 	fi
 }
 
+mingw_lld() {
+	if ! [[ -d lld && -d lld-${VERSION}.src ]]
+	then
+		tar xf ../lld-${VERSION}.src.tar.xz
+		ln -sf lld-${VERSION}.src lld
+	fi
+
+	CFLAGS="${CFLAGS/i686/x86-64-v3}"
+	CXXFLAGS="${CXXFLAGS/i686/x86-64-v3}"
+
+	CC=clang CXX=clang++ \
+	cmake -B build -S lld \
+	-DCMAKE_INSTALL_PREFIX= \
+	-DCMAKE_BUILD_TYPE=Release \
+	-DCMAKE_SKIP_RPATH=ON -GNinja \
+	-DLLVM_LINK_LLVM_DYLIB=ON \
+	-DLLD_DEFAULT_LD_LLD_IS_MINGW=ON
+	DESTDIR=$PWD/pkg ninja install-lld-stripped -C build
+	install -Dm755 pkg/bin/lld "$PKG/usr/bin/mingw-lld"
+}
+
 echo 'int main(){}' > main.c
-if ! gcc -m32 main.c 2> /dev/null; then
+if ! gcc -m32 main.c 2> /dev/null && [[ $1 != mingw ]]
+then
 	echo "::Error: Compiler does not support -m32"
 	exit 1
 else
@@ -147,7 +169,9 @@ fi
 pre_src
 rt_install_dir="/usr/lib/clang/${VERSION%%.*}/lib/${TRIPLE}"
 
-if [[ $1 != pre ]]; then
+if [[ $1 == mingw ]]; then
+	mingw_lld
+elif [[ $1 != pre ]]; then
 	stage2 "::PASS1\n"
 	stage2 "::PASS2\n"
 	TRIPLE_H="usr/include/c++/v1/__config_site"
