@@ -5,7 +5,7 @@ source envars.sh
 
 ELIBC=gnu
 STDLIB=libcxx
-VERSION=18.1.5
+VERSION=18.1.8
 PKG="$PWD/DEST"
 TRIPLE="$(gcc -dumpmachine)"
 URL="https://github.com/llvm/llvm-project"
